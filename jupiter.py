@@ -1,4 +1,5 @@
 import re
+import smtplib
 import dryscrape
 import config
 from bs4 import BeautifulSoup
@@ -7,7 +8,6 @@ prevGrades = []
 useragent = "Mozilla/5.0 (Windows NT 5.1; rv:41.0) Gecko/20100101 Firefox/41.0"
 
 def getGrades():
-
     # go to website
     session = dryscrape.Session()
     session.set_header("User-Agent", useragent)
@@ -15,9 +15,9 @@ def getGrades():
 
     # log in
     user = session.at_xpath("//input[@name='studid1']")
-    user.set_attr("value", config.user)
+    user.set_attr("value", config.jupiter_user)
     password = session.at_xpath("//input[@name='text_password1']")
-    password.set_attr("value", config.password)
+    password.set_attr("value", config.jupiter_password)
     session.at_xpath("//div[@id='loginbtn']").click()
 
     # find grades
@@ -34,7 +34,14 @@ def compareGrades(prev, curr):
     if len(prev) == len(curr):
         for i in range(0, len(curr)):
             if prev[i][1] != curr[i][1]:
-                print "Your " + curr[i][0] + " grade changed!"
+                print(curr[i][0])
+                sendText("Your " + curr[i][0] + " grade changed from " + prev[i][1] + " to " + curr[i][1] + "!")
+
+def sendText(message):
+    smtp = smtplib.SMTP("smtp.gmail.com", 587)
+    smtp.starttls()
+    smtp.login(config.email, config.email_password)
+    smtp.sendmail(config.email, config.phone + "@pm.sprint.com", message)
 
 while True:
     currGrades = getGrades()
