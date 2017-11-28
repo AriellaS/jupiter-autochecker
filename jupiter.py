@@ -1,28 +1,34 @@
 import re
-from bs4 import BeautifulSoup
 import dryscrape
-import time
 import config
+from bs4 import BeautifulSoup
 
 prevGrades = []
+useragent = "Mozilla/5.0 (Windows NT 5.1; rv:41.0) Gecko/20100101 Firefox/41.0"
 
 def getGrades():
-    try:
-        session = dryscrape.Session()
-        session.visit(config.ssoURL)
-        res = session.body()
-        soup = BeautifulSoup(res, "lxml")
-        divs = soup.findAll("div", { "class": "big" } )
 
-        grades = []
+    # go to website
+    session = dryscrape.Session()
+    session.set_header("User-Agent", useragent)
+    session.visit(config.url)
 
-        for i in range(2, len(divs)-2, 2):
-            grade = re.search("(\d+\.\d+)", divs[i+1].getText()).group(0)
-            grades.append(( divs[i].getText(), grade ))
+    # log in
+    user = session.at_xpath("//input[@name='studid1']")
+    user.set_attr("value", config.user)
+    password = session.at_xpath("//input[@name='text_password1']")
+    password.set_attr("value", config.password)
+    session.at_xpath("//div[@id='loginbtn']").click()
 
-        return grades
-    except:
-        return prevGrades
+    # find grades
+    soup = BeautifulSoup(session.body(), "lxml")
+    divs = soup.findAll("div", { "class": "big" } )
+    grades = []
+    for i in range(2, len(divs)-2, 2):
+        grade = re.search("(\d+\.\d+)", divs[i+1].getText()).group(0)
+        grades.append(( divs[i].getText(), grade ))
+
+    return grades
 
 def compareGrades(prev, curr):
     if len(prev) == len(curr):
@@ -34,4 +40,4 @@ while True:
     currGrades = getGrades()
     compareGrades(prevGrades, currGrades)
     prevGrades = currGrades
-    time.sleep(config.waitTime)
+
