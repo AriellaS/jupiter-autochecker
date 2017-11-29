@@ -3,11 +3,14 @@ import smtplib
 import dryscrape
 import config
 from bs4 import BeautifulSoup
+import time
 
 prevGrades = []
+hasBadConn = False
 useragent = "Mozilla/5.0 (Windows NT 5.1; rv:41.0) Gecko/20100101 Firefox/41.0"
 
 def getGrades():
+    global hasBadConn
     try:
         # go to website
         session = dryscrape.Session()
@@ -28,18 +31,22 @@ def getGrades():
         for i in range(2, len(divs)-2, 2):
             grade = re.search("(\d+\.\d+)", divs[i+1].getText()).group(0)
             grades.append(( divs[i].getText(), grade ))
-
+        if hasBadConn:
+            hasBadConn = False
+            log("connection reestablished")
         return grades
 
     except Exception:
-        print("bad connection")
+        if not hasBadConn:
+            hasBadConn = True
+            log("connection lost")
         return prevGrades
 
 def compareGrades(prev, curr):
     if len(prev) == len(curr):
         for i in range(0, len(curr)):
             if prev[i][1] != curr[i][1]:
-                print(curr[i][0])
+                log(curr[i][0] + " changed")
                 sendText("Your " + curr[i][0] + " grade changed from " + prev[i][1] + " to " + curr[i][1] + "!")
 
 def sendText(message):
@@ -48,6 +55,13 @@ def sendText(message):
     smtp.login(config.email, config.email_password)
     smtp.sendmail(config.email, config.phone + "@pm.sprint.com", message)
 
+def log(msg):
+    print(msg)
+    f = open("jupiter.log", "a")
+    f.write("[" + time.asctime() + "] " + msg + "\n")
+    f.close()
+
+log("script started")
 while True:
     currGrades = getGrades()
     compareGrades(prevGrades, currGrades)
